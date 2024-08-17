@@ -32,12 +32,13 @@ if __name__ == '__main__':
     options = parser.parse_args()
 
     if options.outputdir is None:
-        tempdir = None
+        parent = None
     else:
         parent, _ = os.path.split(options.outputdir)
-        tempdir = tempfile.TemporaryDirectory(dir=parent, delete=False)
-        print(tempdir.name)
-        shutil.copytree(options.inputdir, tempdir.name, dirs_exist_ok=True)
+
+    tempdir = tempfile.mkdtemp(prefix='migrateproblem-', dir=parent)
+    print(tempdir)
+    shutil.copytree(options.inputdir, tempdir, dirs_exist_ok=True)
 
     try:
         problem_yaml_path = os.path.join(options.inputdir, 'problem.yaml')
