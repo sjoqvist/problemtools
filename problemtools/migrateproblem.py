@@ -3,7 +3,9 @@
 import argparse
 import io
 import os
+import shutil
 import sys
+import tempfile
 import yaml
 import yaml.parser
 
@@ -13,19 +15,29 @@ def arg_inputdir(path):
     return path
 
 def arg_outputdir(path):
+    #if os.path.lexists(path):
+    #    raise argparse.ArgumentTypeError(f'outputdir: {path} already exists')
+    canonical = os.path.realpath(path)
+    parent, _ = os.path.split(canonical)
     try:
-        os.makedirs(path, exist_ok=False)
-    except FileExistsError:
-        raise argparse.ArgumentTypeError(f'outputdir: {path} already exists')
+        os.makedirs(parent, exist_ok=True)
     except OSError as error:
         raise argparse.ArgumentTypeError(f'outputdir: could not create: {error}')
-    return path
+    return canonical
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='Evaluate (and optionally perform) problem package migration from legacy to current format.')
     parser.add_argument('inputdir', type=arg_inputdir, help='the path to a problem package in legacy format')
     parser.add_argument('-o', '--outputdir', type=arg_outputdir, help='folder of the output package (to be created)')
     options = parser.parse_args()
+
+    if options.outputdir is None:
+        tempdir = None
+    else:
+        parent, _ = os.path.split(options.outputdir)
+        tempdir = tempfile.TemporaryDirectory(dir=parent, delete=False)
+        print(tempdir.name)
+        shutil.copytree(options.inputdir, tempdir.name, dirs_exist_ok=True)
 
     try:
         problem_yaml_path = os.path.join(options.inputdir, 'problem.yaml')
