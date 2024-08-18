@@ -22,6 +22,9 @@ def parser_warning(msg):
 def parser_error(msg):
     sys.exit(f'PARSER ERROR: {msg}')
 
+def parser_unimplemented(msg):
+    sys.exit(f'PARSER NOT IMPLEMENTED: {msg}')
+
 class ProblemFormatVersion(IntFlag):
     LEGACY_ICPC = 2
     LEGACY = 3
@@ -41,12 +44,12 @@ class ProblemYaml:
         if in_version is None or in_version == 'legacy':
             self._in_version = ProblemFormatVersion.LEGACY
         else:
-            parser_error(f'unimplemented problem format version: {in_version}')
+            parser_unimplemented(f'problem format version: {in_version}')
         self._out_version = out_version
         self._type = None
         self._name = None
         self._uuid = None
-        self._author = None
+        self._authors = None
         self._source = None
         self._source_url = None
         self._license = None
@@ -109,8 +112,9 @@ class ProblemYaml:
 
     @property
     def author(self):
-        if self._author is None: return None
-        return ', '.join(self._author)
+        if self._out_version >= ProblemFormatVersion.V2023_07: return None
+        if self._authors is None: return None
+        return ', '.join(self._authors)
 
     @author.setter
     def author(self, value):
@@ -124,7 +128,21 @@ class ProblemYaml:
                 if self._suspicious_name.search(author):
                     parser_warning(f'the author name "{author}" may have been incorrectly parsed')
 
-            self._author = authors
+            self._authors = authors
+
+    @property
+    def credits(self):
+        # todo: check if credits are dropped because of version downgrade
+        if self._out_version & ProblemFormatVersion.LEGACY_ICPC: return None
+        if self._authors is None: return None
+        return {
+            "authors": self._authors
+        }
+
+    @credits.setter
+    def credits(self, value):
+        if value is not None:
+            parser_unimplemented('parsing of credits has not yet been implemented')
 
     @property
     def source(self):
@@ -161,7 +179,7 @@ class ProblemYaml:
     def rights_owner(self):
         if self._rights_owner is not None and self._license == 'public domain':
             parser_error('"rights_owner" given although license is "public domain"')
-        if self._license is not None and self._license not in ['unknown', 'public domain'] and self._rights_owner is None and self._author is None and self._source is None:
+        if self._license is not None and self._license not in ['unknown', 'public domain'] and self._rights_owner is None and self._authors is None and self._source is None:
             parser_error(f'no owner can be identified although license is "{self._license}"')
         return self._rights_owner
 
@@ -253,6 +271,7 @@ class ProblemYaml:
         dict_add_unless_none(dict, 'name', self.name)
         dict_add_unless_none(dict, 'uuid', self.uuid)
         dict_add_unless_none(dict, 'author', self.author)
+        dict_add_unless_none(dict, 'credits', self.credits)
         dict_add_unless_none(dict, 'source', self.source)
         dict_add_unless_none(dict, 'source_url', self.source_url)
         dict_add_unless_none(dict, 'license', self.license)
@@ -321,7 +340,9 @@ if __name__ == '__main__':
     problem_yaml = ProblemYaml(problem_yaml_object.pop('problem_format_version', None), target_format)
     problem_yaml.type = problem_yaml_object.pop('type', None)
     problem_yaml.name = problem_yaml_object.pop('name', None)
+    problem_yaml.uuid = problem_yaml_object.pop('uuid', None)
     problem_yaml.author = problem_yaml_object.pop('author', None)
+    problem_yaml.credits = problem_yaml_object.pop('credits', None)
     problem_yaml.source = problem_yaml_object.pop('source', None)
     problem_yaml.source_url = problem_yaml_object.pop('source_url', None)
     problem_yaml.license = problem_yaml_object.pop('license', None)
@@ -346,7 +367,7 @@ if __name__ == '__main__':
     #     case 'min' | 'sum':
     #         problem_yaml_object['aggregation'] = key_grader_flags
     #     case 'accept_if_any_accepted' | 'always_accept' | 'first_error' | 'ignore_sample' | 'max' | 'worst_error':
-    #         parser_error(f'unimplemented grader_flags value "{key_grader_flags}"')
+    #         parser_unimplemented(f'grader_flags value "{key_grader_flags}"')
     #     case 'avg':
     #         parser_error(f'unsupported grader_flags value "{key_grader_flags}" - this package cannot be migrated')
     #     case _:
