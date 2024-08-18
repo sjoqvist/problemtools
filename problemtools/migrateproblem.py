@@ -49,6 +49,7 @@ class ProblemYaml:
         self._type = None
         self._name = None
         self._uuid = None
+        self._version = None
         self._authors = None
         self._source = None
         self._source_url = None
@@ -70,7 +71,7 @@ class ProblemYaml:
             case ProblemFormatVersion.V2023_07:
                 return '2023-07-draft'
             case _:
-                parser_error('unexpected output problem format version')
+                parser_error('unexpected target problem format version')
 
     @property
     def type(self):
@@ -90,7 +91,7 @@ class ProblemYaml:
     @property
     def name(self):
         if self._out_version >= ProblemFormatVersion.V2023_07 and self._name is None:
-            parser_error('the output format version requires the problem "name" property')
+            parser_error('the target format version requires the problem "name" property')
         return self._name
 
     @name.setter
@@ -109,6 +110,17 @@ class ProblemYaml:
     def uuid(self, value):
         if value is not None:
             self._uuid = uuid.UUID(value)
+
+    @property
+    def version(self):
+        if self._out_version & ProblemFormatVersion.LEGACY_ICPC and self._version is not None:
+            parser_warning('dropping "version" property because of target problem format version')
+        return self._version
+
+    @version.setter
+    def version(self, value):
+        if value is not None:
+            self._version = value
 
     @property
     def author(self):
@@ -270,6 +282,7 @@ class ProblemYaml:
         dict_add_unless_none(dict, 'type', self.type)
         dict_add_unless_none(dict, 'name', self.name)
         dict_add_unless_none(dict, 'uuid', self.uuid)
+        dict_add_unless_none(dict, 'version', self.version)
         dict_add_unless_none(dict, 'author', self.author)
         dict_add_unless_none(dict, 'credits', self.credits)
         dict_add_unless_none(dict, 'source', self.source)
@@ -341,6 +354,7 @@ if __name__ == '__main__':
     problem_yaml.type = problem_yaml_object.pop('type', None)
     problem_yaml.name = problem_yaml_object.pop('name', None)
     problem_yaml.uuid = problem_yaml_object.pop('uuid', None)
+    problem_yaml.version = problem_yaml_object.pop('version', None)
     problem_yaml.author = problem_yaml_object.pop('author', None)
     problem_yaml.credits = problem_yaml_object.pop('credits', None)
     problem_yaml.source = problem_yaml_object.pop('source', None)
