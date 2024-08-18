@@ -1,6 +1,6 @@
 #! /usr/bin/env python3
 # -*- coding: utf-8 -*-
-from enum import Enum
+from enum import Enum, IntFlag
 import argparse
 import io
 import os
@@ -24,6 +24,13 @@ class ProblemFormatVersion(Enum):
     LEGACY = 1
     LEGACY_ICPC = 2
     V2023_07 = 3
+
+class Validation(IntFlag):
+    NONE = 0
+    DEFAULT = 1
+    CUSTOM = 2
+    SCORE = 4
+    INTERACTIVE = 8
 
 class ProblemYaml:
     def __init__(self, format_version):
@@ -129,12 +136,37 @@ class ProblemYaml:
 
     @property
     def validation(self):
-        return self._validation
+        if self._validation is None: return None
+        flags = []
+        if self._validation & Validation.DEFAULT:
+            flags.append('default')
+        if self._validation & Validation.CUSTOM:
+            flags.append('custom')
+        if self._validation & Validation.SCORE:
+            flags.append('score')
+        if self._validation & Validation.INTERACTIVE:
+            flags.append('interactive')
+        return ' '.join(flags)
 
     @validation.setter
     def validation(self, value):
         if value is not None:
-            self._validation = value
+            flags = Validation.NONE
+            for s in value.split():
+                match s:
+                    case 'default':
+                        flags |= Validation.DEFAULT
+                    case 'custom':
+                        flags |= Validation.CUSTOM
+                    case 'score':
+                        flags |= Validation.SCORE
+                    case 'interactive':
+                        flags |= Validation.INTERACTIVE
+                    case _:
+                        parser_error(f'unknown validation "{s}"')
+            if flags & Validation.DEFAULT and flags & ~Validation.DEFAULT:
+                parser_error(f'forbidden validation combination "{value}"')
+            self._validation = flags
 
     @property
     def validator_flags(self):
