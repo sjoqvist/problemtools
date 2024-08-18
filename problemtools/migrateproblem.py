@@ -52,7 +52,6 @@ class ProblemYaml:
         self._version = None
         self._authors = None
         self._source = None
-        self._source_url = None
         self._license = None
         self._rights_owner = None
         self._limits = None
@@ -136,6 +135,7 @@ class ProblemYaml:
     @author.setter
     def author(self, value):
         if value is None: return
+        # check input version
 
         # adapted from kattisd/addproblem.py
         authors = re.split(',|\s+and\s+|\s+&\s+', value)
@@ -165,23 +165,46 @@ class ProblemYaml:
 
     @property
     def source(self):
+        if self._out_version & ProblemFormatVersion.LEGACY_ICPC:
+            if self._source is None or not self._source: return None
+            return self._source[0].get('name', None)
         return self._source
 
     @source.setter
     def source(self, value):
         if value is None: return
-        self._source = value
+        if self._in_version & ProblemFormatVersion.LEGACY_ICPC:
+            if not isinstance(value, str): parser_error(f'unexpected type of property "source": {type(value)}')
+            if self._source is None: self._source = [{}]
+            self._source[0]['name'] = value
+        else:
+            # value could be
+            # 1. a string
+            # 2. an object of 'name' and possibly 'url'
+            # 3. an array of strings and/or objects of 'name' and possibly 'url'
+            # this code unifies 1 and 2 into 3
+            if not isinstance(value, list):
+                value = [value]
+            for i, x in enumerate(value):
+                if isinstance(x, str): value[i] = { 'name': x }
+            self._source = value
 
     @property
     def source_url(self):
-        if self._source_url is not None and self._source is None:
-            parser_error('"source_url" is given although "source" is not')
-        return self._source_url
+        if self._out_version & ProblemFormatVersion.LEGACY_ICPC:
+            if self._source is None or not self._source: return None
+            return self._source[0].get('url', None)
+        return None
 
     @source_url.setter
     def source_url(self, value):
         if value is None: return
-        self._source_url = value
+        if self._in_version & ProblemFormatVersion.LEGACY_ICPC:
+            if not isinstance(value, str): parser_error(f'unexpected type of property "source_url": {type(value)}')
+            if self._source is None: self._source = [{}]
+            self._source[0]['url'] = value
+        else:
+            parser_error('property "source_url" is not allowed in this source problem format version')
 
     @property
     def license(self):
