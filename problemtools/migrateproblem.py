@@ -83,10 +83,12 @@ class ProblemYaml:
 
     @type.setter
     def type(self, value):
-        if value is not None:
-            if value not in ['pass-fail', 'scoring']:
-                parser_error(f'unknown problem type: {value}')
-            self._type = value
+        if value is None: return
+        # todo: implement 2023-07-draft
+        if not isinstance(value, str): parser_error(f'unexpected type of property "type": {type(value)}')
+        if value not in ['pass-fail', 'scoring']:
+            parser_error(f'unknown problem type: {value}')
+        self._type = value
 
     @property
     def name(self):
@@ -96,8 +98,10 @@ class ProblemYaml:
 
     @name.setter
     def name(self, value):
-        if value is not None:
-            self._name = value
+        if value is None: return
+        # todo: implement 2023-07-draft
+        if not isinstance(value, str): parser_error(f'unexpected type of property "name": {type(value)}')
+        self._name = value
 
     @property
     def uuid(self):
@@ -108,8 +112,8 @@ class ProblemYaml:
 
     @uuid.setter
     def uuid(self, value):
-        if value is not None:
-            self._uuid = uuid.UUID(value)
+        if value is None: return
+        self._uuid = uuid.UUID(value)
 
     @property
     def version(self):
@@ -119,8 +123,9 @@ class ProblemYaml:
 
     @version.setter
     def version(self, value):
-        if value is not None:
-            self._version = value
+        if value is None: return
+        # todo: check format version
+        self._version = value
 
     @property
     def author(self):
@@ -130,31 +135,33 @@ class ProblemYaml:
 
     @author.setter
     def author(self, value):
-        if value is not None:
-            # adapted from kattisd/addproblem.py
-            authors = re.split(',|\s+and\s+|\s+&\s+', value)
-            authors = [x.strip(' \t\r\n') for x in authors]
-            authors = [x for x in authors if len(x) > 0]
+        if value is None: return
 
-            for author in authors:
-                if self._suspicious_name.search(author):
-                    parser_warning(f'the author name "{author}" may have been incorrectly parsed')
+        # adapted from kattisd/addproblem.py
+        authors = re.split(',|\s+and\s+|\s+&\s+', value)
+        authors = [x.strip(' \t\r\n') for x in authors]
+        authors = [x for x in authors if len(x) > 0]
 
-            self._authors = authors
+        for author in authors:
+            if self._suspicious_name.search(author):
+                parser_warning(f'the author name "{author}" may have been incorrectly parsed')
+
+        self._authors = authors
 
     @property
     def credits(self):
         # todo: check if credits are dropped because of version downgrade
         if self._out_version & ProblemFormatVersion.LEGACY_ICPC: return None
         if self._authors is None: return None
+        # todo: flatten if array is of length 1
         return {
             "authors": self._authors
         }
 
     @credits.setter
     def credits(self, value):
-        if value is not None:
-            parser_unimplemented('parsing of credits has not yet been implemented')
+        if value is None: return
+        parser_unimplemented('parsing of credits has not yet been implemented')
 
     @property
     def source(self):
@@ -162,8 +169,8 @@ class ProblemYaml:
 
     @source.setter
     def source(self, value):
-        if value is not None:
-            self._source = value
+        if value is None: return
+        self._source = value
 
     @property
     def source_url(self):
@@ -173,8 +180,8 @@ class ProblemYaml:
 
     @source_url.setter
     def source_url(self, value):
-        if value is not None:
-            self._source_url = value
+        if value is None: return
+        self._source_url = value
 
     @property
     def license(self):
@@ -182,10 +189,10 @@ class ProblemYaml:
 
     @license.setter
     def license(self, value):
+        if value is None: return
         if value not in ['unknown', 'public domain', 'cc0', 'cc by', 'cc by-sa', 'educational', 'permission']:
             parser_error(f'illegal license: {value}')
-        if value is not None:
-            self._license = value
+        self._license = value
 
     @property
     def rights_owner(self):
@@ -197,8 +204,8 @@ class ProblemYaml:
 
     @rights_owner.setter
     def rights_owner(self, value):
-        if value is not None:
-            self._rights_owner = value
+        if value is None: return
+        self._rights_owner = value
 
     @property
     def limits(self):
@@ -206,8 +213,8 @@ class ProblemYaml:
 
     @limits.setter
     def limits(self, value):
-        if value is not None:
-            self._limits = value
+        if value is None: return
+        self._limits = value
 
     @property
     def validation(self):
@@ -225,23 +232,24 @@ class ProblemYaml:
 
     @validation.setter
     def validation(self, value):
-        if value is not None:
-            flags = Validation.NONE
-            for s in value.split():
-                match s:
-                    case 'default':
-                        flags |= Validation.DEFAULT
-                    case 'custom':
-                        flags |= Validation.CUSTOM
-                    case 'score':
-                        flags |= Validation.SCORE
-                    case 'interactive':
-                        flags |= Validation.INTERACTIVE
-                    case _:
-                        parser_error(f'unknown validation "{s}"')
-            if flags & Validation.DEFAULT and flags & ~Validation.DEFAULT:
-                parser_error(f'forbidden validation combination "{value}"')
-            self._validation = flags
+        if value is None: return
+
+        flags = Validation.NONE
+        for s in value.split():
+            match s:
+                case 'default':
+                    flags |= Validation.DEFAULT
+                case 'custom':
+                    flags |= Validation.CUSTOM
+                case 'score':
+                    flags |= Validation.SCORE
+                case 'interactive':
+                    flags |= Validation.INTERACTIVE
+                case _:
+                    parser_error(f'unknown validation "{s}"')
+        if flags & Validation.DEFAULT and flags & ~Validation.DEFAULT:
+            parser_error(f'forbidden validation combination "{value}"')
+        self._validation = flags
 
     @property
     def validator_flags(self):
@@ -249,8 +257,8 @@ class ProblemYaml:
 
     @validator_flags.setter
     def validator_flags(self, value):
-        if value is not None:
-            self._validator_flags = value
+        if value is None: return
+        self._validator_flags = value
 
     @property
     def scoring(self):
@@ -258,13 +266,13 @@ class ProblemYaml:
 
     @scoring.setter
     def scoring(self, value):
-        if value is not None:
-            self._scoring = value
+        if value is None: return
+        self._scoring = value
 
     def grading(self, value):
-        if value is not None:
-            parser_warning('"grading" is deprecated, use "scoring" instead')
-            self._scoring = value
+        if value is None: return
+        parser_warning('"grading" is deprecated, use "scoring" instead')
+        self._scoring = value
 
     @property
     def keywords(self):
@@ -272,8 +280,8 @@ class ProblemYaml:
 
     @keywords.setter
     def keywords(self, value):
-        if value is not None:
-            self._keywords = value
+        if value is None: return
+        self._keywords = value
 
     def generate_dict(self):
         dict = {
