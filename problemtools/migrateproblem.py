@@ -41,6 +41,9 @@ class ProblemYaml:
     def __init__(self, in_version, out_version):
         # names without spaces and/or with special characters are suspicious
         self._suspicious_name = re.compile(r'^([^ ]*|.*[!"#$%&()*+,./0-9:;<=>?@[\\\]\^_{|}~].*)$')
+        # split a string on the format "Full Name <adress>" or "Full Name"
+        self._fullname_address = re.compile(r'^(|.*[^\s>])\s*(?:<([^<>]*)>)?\s*$')
+
         if in_version is None or in_version == 'legacy':
             self._in_version = ProblemFormatVersion.LEGACY
         else:
@@ -50,7 +53,7 @@ class ProblemYaml:
         self._name = None
         self._uuid = None
         self._version = None
-        self._authors = None
+        self._credits = None
         self._source = None
         self._license = None
         self._rights_owner = None
@@ -129,8 +132,8 @@ class ProblemYaml:
     @property
     def author(self):
         if self._out_version >= ProblemFormatVersion.V2023_07: return None
-        if self._authors is None: return None
-        return ', '.join(self._authors)
+        if self._credits is None or 'authors' not in self._credits: return None
+        return ', '.join([author.get('name', None) for author in self._credits['authors']])
 
     @author.setter
     def author(self, value):
@@ -140,23 +143,25 @@ class ProblemYaml:
         # adapted from kattisd/addproblem.py
         authors = re.split(',|\s+and\s+|\s+&\s+', value)
         authors = [x.strip(' \t\r\n') for x in authors]
-        authors = [x for x in authors if len(x) > 0]
+        authors = [{ 'name': x } for x in authors if len(x) > 0]
 
         for author in authors:
-            if self._suspicious_name.search(author):
-                parser_warning(f'the author name "{author}" may have been incorrectly parsed')
+            name = author['name']
+            if self._suspicious_name.search(name):
+                parser_warning(f'the author name "{name}" may have been incorrectly parsed')
 
-        self._authors = authors
+        self._credits = { 'authors': authors }
 
     @property
     def credits(self):
         # todo: check if credits are dropped because of version downgrade
         if self._out_version & ProblemFormatVersion.LEGACY_ICPC: return None
-        if self._authors is None: return None
+        if self._credits is None: return None
         # todo: flatten if array is of length 1
-        return {
-            "authors": self._authors
-        }
+        dict = {}
+        if 'authors' in self._credits:
+            dict['authors'] = [(f'{author["name"]} <{author["address"]}>' if 'address' in author else author['name']) for author in self._credits['authors']]
+        return dict if dict else None
 
     @credits.setter
     def credits(self, value):
@@ -221,7 +226,7 @@ class ProblemYaml:
     def rights_owner(self):
         if self._rights_owner is not None and self._license == 'public domain':
             parser_error('"rights_owner" given although license is "public domain"')
-        if self._license is not None and self._license not in ['unknown', 'public domain'] and self._rights_owner is None and self._authors is None and self._source is None:
+        if self._license is not None and self._license not in ['unknown', 'public domain'] and self._rights_owner is None and (self._credits is None or 'authors' not in self._credits) and self._source is None:
             parser_error(f'no owner can be identified although license is "{self._license}"')
         return self._rights_owner
 
