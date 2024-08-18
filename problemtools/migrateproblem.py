@@ -4,6 +4,7 @@ from enum import Enum, IntFlag
 import argparse
 import io
 import os
+import re
 import shutil
 import sys
 import tempfile
@@ -34,6 +35,8 @@ class Validation(IntFlag):
 
 class ProblemYaml:
     def __init__(self, format_version):
+        # names without spaces and/or with special characters are suspicious
+        self._suspicious_name = re.compile(r'^([^ ]*|.*[!"#$%&()*+,./0-9:;<=>?@[\\\]\^_{|}~].*)$')
         if format_version is None or format_version == 'legacy':
             self._version_enum = ProblemFormatVersion
             self._format_version = 'legacy'
@@ -74,12 +77,22 @@ class ProblemYaml:
 
     @property
     def author(self):
-        return self._author
+        if self._author is None: return None
+        return ', '.join(self._author)
 
     @author.setter
     def author(self, value):
         if value is not None:
-            self._author = value
+            # adapted from kattisd/addproblem.py
+            authors = re.split(',|\s+and\s+|\s+&\s+', value)
+            authors = [x.strip(' \t\r\n') for x in authors]
+            authors = [x for x in authors if len(x) > 0]
+
+            for author in authors:
+                if self._suspicious_name.search(author):
+                    parser_warning(f'the author name "{author}" may have been incorrectly parsed')
+
+            self._author = authors
 
     @property
     def source(self):
