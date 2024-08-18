@@ -14,6 +14,12 @@ def dict_add_unless_none(dict, key, value):
     if value is not None:
         dict[key] = value
 
+def parser_warning(msg):
+    print(f'PARSER WARNING: {msg}', file=sys.stderr)
+
+def parser_error(msg):
+    sys.exit(f'PARSER ERROR: {msg}')
+
 class ProblemFormatVersion(Enum):
     LEGACY = 1
     LEGACY_ICPC = 2
@@ -25,7 +31,7 @@ class ProblemYaml:
             self._version_enum = ProblemFormatVersion
             self._format_version = 'legacy'
         else:
-            sys.exit(f'unimplemented problem format version: {format_version}')
+            parser_error(f'unimplemented problem format version: {format_version}')
         self._type = None
         self._name = None
         self._author = None
@@ -47,7 +53,7 @@ class ProblemYaml:
     def type(self, value):
         if value is not None:
             if value not in ['pass-fail', 'scoring']:
-                sys.exit(f'unknown problem type: {value}')
+                parser_error(f'unknown problem type: {value}')
             self._type = value
 
     @property
@@ -80,7 +86,7 @@ class ProblemYaml:
     @property
     def source_url(self):
         if self._source_url is not None and self._source is None:
-            sys.exit('"source_url" is given although "source" is not')
+            parser_error('"source_url" is given although "source" is not')
         return self._source_url
 
     @source_url.setter
@@ -95,16 +101,16 @@ class ProblemYaml:
     @license.setter
     def license(self, value):
         if value not in ['unknown', 'public domain', 'cc0', 'cc by', 'cc by-sa', 'educational', 'permission']:
-            sys.exit(f'illegal license: {value}')
+            parser_error(f'illegal license: {value}')
         if value is not None:
             self._license = value
 
     @property
     def rights_owner(self):
         if self._rights_owner is not None and self._license == 'public domain':
-            sys.exit('"rights_owner" given although license is "public domain"')
+            parser_error('"rights_owner" given although license is "public domain"')
         if self._license is not None and self._license not in ['unknown', 'public domain'] and self._rights_owner is None and self._author is None and self._source is None:
-            sys.exit(f'no owner can be identified although license is "{self._license}"')
+            parser_error(f'no owner can be identified although license is "{self._license}"')
         return self._rights_owner
 
     @rights_owner.setter
@@ -150,7 +156,7 @@ class ProblemYaml:
 
     def grading(self, value):
         if value is not None:
-            print('WARNING: "grading" is deprecated, use "scoring" instead', file=sys.stderr)
+            parser_warning('"grading" is deprecated, use "scoring" instead')
             self._scoring = value
 
     @property
@@ -215,13 +221,13 @@ if __name__ == '__main__':
         problem_yaml_path = os.path.join(options.inputdir, 'problem.yaml')
         problem_yaml_stream = io.open(problem_yaml_path, 'r')
     except FileNotFoundError:
-        sys.exit(f'problem metadata not found in inputdir ({problem_yaml_path})')
+        parser_error(f'problem metadata not found in inputdir ({problem_yaml_path})')
 
     with problem_yaml_stream:
         try:
             problem_yaml_object = yaml.safe_load(problem_yaml_stream)
         except yaml.parser.ParserError as error:
-            sys.exit(f'problem metadata parsing failed: {error}')
+            parser_error(f'problem metadata parsing failed: {error}')
 
     problem_yaml = ProblemYaml(problem_yaml_object.pop('problem_format_version', None))
     problem_yaml.type = problem_yaml_object.pop('type', None)
@@ -239,7 +245,7 @@ if __name__ == '__main__':
     problem_yaml.keywords = problem_yaml_object.pop('keywords', None)
 
     if bool(problem_yaml_object):
-        print(f'WARNING: superfluous keys in "problem.yaml": {problem_yaml_object}', file=sys.stderr)
+        parser_warning(f'superfluous keys in "problem.yaml": {problem_yaml_object}')
 
     print(f'{problem_yaml.generate_dict()}')
 
@@ -251,11 +257,11 @@ if __name__ == '__main__':
     #     case 'min' | 'sum':
     #         problem_yaml_object['aggregation'] = key_grader_flags
     #     case 'accept_if_any_accepted' | 'always_accept' | 'first_error' | 'ignore_sample' | 'max' | 'worst_error':
-    #         sys.exit(f'unimplemented grader_flags value "{key_grader_flags}"')
+    #         parser_error(f'unimplemented grader_flags value "{key_grader_flags}"')
     #     case 'avg':
-    #         sys.exit(f'unsupported grader_flags value "{key_grader_flags}" - this package cannot be migrated')
+    #         parser_error(f'unsupported grader_flags value "{key_grader_flags}" - this package cannot be migrated')
     #     case _:
-    #         sys.exit(f'unknown grader_flags value "{key_grader_flags}"')
+    #         parser_error(f'unknown grader_flags value "{key_grader_flags}"')
 
     print(type(problem_yaml_object))
     print(problem_yaml_object)
