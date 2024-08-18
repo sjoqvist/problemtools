@@ -34,14 +34,14 @@ class Validation(IntFlag):
     INTERACTIVE = 8
 
 class ProblemYaml:
-    def __init__(self, format_version):
+    def __init__(self, in_version, out_version):
         # names without spaces and/or with special characters are suspicious
         self._suspicious_name = re.compile(r'^([^ ]*|.*[!"#$%&()*+,./0-9:;<=>?@[\\\]\^_{|}~].*)$')
-        if format_version is None or format_version == 'legacy':
-            self._version_enum = ProblemFormatVersion
-            self._format_version = 'legacy'
+        if in_version is None or in_version == 'legacy':
+            self._in_version = ProblemFormatVersion.LEGACY
         else:
-            parser_error(f'unimplemented problem format version: {format_version}')
+            parser_error(f'unimplemented problem format version: {in_version}')
+        self._out_version = out_version
         self._type = None
         self._name = None
         self._author = None
@@ -54,6 +54,18 @@ class ProblemYaml:
         self._validator_flags = None
         self._scoring = None
         self._keywords = None
+
+    @property
+    def problem_format_version(self):
+        match self._out_version:
+            case ProblemFormatVersion.LEGACY:
+                return 'legacy'
+            case ProblemFormatVersion.LEGACY_ICPC:
+                return 'legacy-icpc'
+            case ProblemFormatVersion.V2023_07:
+                return '2023-07'
+            case _:
+                parser_error('unexpected output problem format version')
 
     @property
     def type(self):
@@ -215,7 +227,7 @@ class ProblemYaml:
 
     def generate_dict(self):
         dict = {
-            "problem_format_version": self._format_version,
+            "problem_format_version": self.problem_format_version,
         }
         dict_add_unless_none(dict, 'type', self.type)
         dict_add_unless_none(dict, 'name', self.name)
@@ -274,7 +286,7 @@ if __name__ == '__main__':
         except yaml.parser.ParserError as error:
             parser_error(f'problem metadata parsing failed: {error}')
 
-    problem_yaml = ProblemYaml(problem_yaml_object.pop('problem_format_version', None))
+    problem_yaml = ProblemYaml(problem_yaml_object.pop('problem_format_version', None), ProblemFormatVersion.LEGACY)
     problem_yaml.type = problem_yaml_object.pop('type', None)
     problem_yaml.name = problem_yaml_object.pop('name', None)
     problem_yaml.author = problem_yaml_object.pop('author', None)
