@@ -1,6 +1,6 @@
 #! /usr/bin/env python3
 # -*- coding: utf-8 -*-
-from enum import Enum, IntFlag
+from enum import IntFlag
 import argparse
 import io
 import os
@@ -8,6 +8,7 @@ import re
 import shutil
 import sys
 import tempfile
+import uuid
 import yaml
 import yaml.parser
 
@@ -21,10 +22,10 @@ def parser_warning(msg):
 def parser_error(msg):
     sys.exit(f'PARSER ERROR: {msg}')
 
-class ProblemFormatVersion(Enum):
-    LEGACY = 1
+class ProblemFormatVersion(IntFlag):
     LEGACY_ICPC = 2
-    V2023_07 = 3
+    LEGACY = 3
+    V2023_07 = 4
 
 class Validation(IntFlag):
     NONE = 0
@@ -44,6 +45,7 @@ class ProblemYaml:
         self._out_version = out_version
         self._type = None
         self._name = None
+        self._uuid = None
         self._author = None
         self._source = None
         self._source_url = None
@@ -63,12 +65,16 @@ class ProblemYaml:
             case ProblemFormatVersion.LEGACY_ICPC:
                 return 'legacy-icpc'
             case ProblemFormatVersion.V2023_07:
-                return '2023-07'
+                return '2023-07-draft'
             case _:
                 parser_error('unexpected output problem format version')
 
     @property
     def type(self):
+        if self._out_version is ProblemFormatVersion.LEGACY_ICPC and self._type is not None:
+            parser_error('legacy-icpc format doesn\'t support property "type"')
+        if self._out_version is ProblemFormatVersion.LEGACY and self._type not in ['pass-fail', 'scoring']:
+            parser_error(f'unsupported type property in legacy format: "{self._type}"')
         return self._type
 
     @type.setter
@@ -80,12 +86,26 @@ class ProblemYaml:
 
     @property
     def name(self):
+        if self._out_version >= ProblemFormatVersion.V2023_07 and self._name is None:
+            parser_error('the output format version requires the problem "name" property')
         return self._name
 
     @name.setter
     def name(self, value):
         if value is not None:
             self._name = value
+
+    @property
+    def uuid(self):
+        if self._out_version >= ProblemFormatVersion.V2023_07 and self._uuid is None:
+            self._uuid = uuid.uuid4()
+            parser_warning('generated a new UUID for the "uuid" property as the input didn\'t contain one')
+        return str(self._uuid)
+
+    @uuid.setter
+    def uuid(self, value):
+        if value is not None:
+            self._uuid = uuid.UUID(value)
 
     @property
     def author(self):
@@ -231,6 +251,7 @@ class ProblemYaml:
         }
         dict_add_unless_none(dict, 'type', self.type)
         dict_add_unless_none(dict, 'name', self.name)
+        dict_add_unless_none(dict, 'uuid', self.uuid)
         dict_add_unless_none(dict, 'author', self.author)
         dict_add_unless_none(dict, 'source', self.source)
         dict_add_unless_none(dict, 'source_url', self.source_url)
@@ -263,7 +284,18 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='Evaluate (and optionally perform) problem package migration from legacy to current format.')
     parser.add_argument('inputdir', type=arg_inputdir, help='the path to a problem package in legacy format')
     parser.add_argument('-o', '--outputdir', type=arg_outputdir, help='folder of the output package (to be created)')
+    parser.add_argument('-f', '--format', choices=['legacy', 'legacy-icpc', '2023-07-draft'], default='2023-07-draft', help='problem version format of the target')
     options = parser.parse_args()
+
+    match options.format:
+        case 'legacy':
+            target_format = ProblemFormatVersion.LEGACY
+        case 'legacy-icpc':
+            target_format = ProblemFormatVersion.LEGACY_ICPC
+        case '2023-07-draft':
+            target_format = ProblemFormatVersion.V2023_07
+        case _:
+            sys.exit(f'unexpected target problem format version: {options.format}')
 
     if options.outputdir is None:
         parent = None
@@ -286,7 +318,7 @@ if __name__ == '__main__':
         except yaml.parser.ParserError as error:
             parser_error(f'problem metadata parsing failed: {error}')
 
-    problem_yaml = ProblemYaml(problem_yaml_object.pop('problem_format_version', None), ProblemFormatVersion.LEGACY)
+    problem_yaml = ProblemYaml(problem_yaml_object.pop('problem_format_version', None), target_format)
     problem_yaml.type = problem_yaml_object.pop('type', None)
     problem_yaml.name = problem_yaml_object.pop('name', None)
     problem_yaml.author = problem_yaml_object.pop('author', None)
