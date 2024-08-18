@@ -79,6 +79,8 @@ class ProblemYaml:
 
     @property
     def source_url(self):
+        if self._source_url is not None and self._source is None:
+            sys.exit('"source_url" is given although "source" is not')
         return self._source_url
 
     @source_url.setter
@@ -92,11 +94,17 @@ class ProblemYaml:
 
     @license.setter
     def license(self, value):
+        if value not in ['unknown', 'public domain', 'cc0', 'cc by', 'cc by-sa', 'educational', 'permission']:
+            sys.exit(f'illegal license: {value}')
         if value is not None:
             self._license = value
 
     @property
     def rights_owner(self):
+        if self._rights_owner is not None and self._license == 'public domain':
+            sys.exit('"rights_owner" given although license is "public domain"')
+        if self._license is not None and self._license not in ['unknown', 'public domain'] and self._rights_owner is None and self._author is None and self._source is None:
+            sys.exit(f'no owner can be identified although license is "{self._license}"')
         return self._rights_owner
 
     @rights_owner.setter
