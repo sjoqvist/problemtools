@@ -63,6 +63,7 @@ class ProblemYaml:
         self._scoring = None
         self._keywords = None
 
+    # present in all versions
     @property
     def problem_format_version(self):
         match self._out_version:
@@ -75,6 +76,7 @@ class ProblemYaml:
             case _:
                 parser_error('unexpected target problem format version')
 
+    # not present in legacy-icpc
     @property
     def type(self):
         if self._out_version is ProblemFormatVersion.LEGACY_ICPC and self._type is not None:
@@ -92,6 +94,7 @@ class ProblemYaml:
             parser_error(f'unknown problem type: {value}')
         self._type = value
 
+    # present in all versions
     @property
     def name(self):
         if self._out_version >= ProblemFormatVersion.V2023_07 and self._name is None:
@@ -105,6 +108,7 @@ class ProblemYaml:
         if not isinstance(value, str): parser_error(f'unexpected type of property "name": {type(value)}')
         self._name = value
 
+    # present in all versions
     @property
     def uuid(self):
         if self._out_version >= ProblemFormatVersion.V2023_07 and self._uuid is None:
@@ -117,6 +121,7 @@ class ProblemYaml:
         if value is None: return
         self._uuid = uuid.UUID(value)
 
+    # present since 2023-07-draft
     @property
     def version(self):
         if self._out_version & ProblemFormatVersion.LEGACY_ICPC and self._version is not None:
@@ -129,6 +134,7 @@ class ProblemYaml:
         # todo: check format version
         self._version = value
 
+    # not present since 2023-07-draft (see credits)
     @property
     def author(self):
         if self._out_version >= ProblemFormatVersion.V2023_07: return None
@@ -152,6 +158,7 @@ class ProblemYaml:
 
         self._credits = { 'authors': authors }
 
+    # present since 2023-07-draft (see author for older syntax)
     @property
     def credits(self):
         # todo: check if credits are dropped because of version downgrade
@@ -168,6 +175,7 @@ class ProblemYaml:
         if value is None: return
         parser_unimplemented('parsing of credits has not yet been implemented')
 
+    # present in all versions
     @property
     def source(self):
         if self._out_version & ProblemFormatVersion.LEGACY_ICPC:
@@ -194,6 +202,7 @@ class ProblemYaml:
                 if isinstance(x, str): value[i] = { 'name': x }
             self._source = value
 
+    # not present since 2023-07-draft (see source)
     @property
     def source_url(self):
         if self._out_version & ProblemFormatVersion.LEGACY_ICPC:
@@ -211,6 +220,7 @@ class ProblemYaml:
         else:
             parser_error('property "source_url" is not allowed in this source problem format version')
 
+    # present in all versions
     @property
     def license(self):
         return self._license
@@ -222,6 +232,7 @@ class ProblemYaml:
             parser_error(f'illegal license: {value}')
         self._license = value
 
+    # present in all versions
     @property
     def rights_owner(self):
         if self._rights_owner is not None and self._license == 'public domain':
@@ -235,6 +246,7 @@ class ProblemYaml:
         if value is None: return
         self._rights_owner = value
 
+    # present in all versions
     @property
     def limits(self):
         return self._limits
@@ -244,6 +256,7 @@ class ProblemYaml:
         if value is None: return
         self._limits = value
 
+    # not present since 2023-07-draft
     @property
     def validation(self):
         if self._validation is None: return None
@@ -279,6 +292,7 @@ class ProblemYaml:
             parser_error(f'forbidden validation combination "{value}"')
         self._validation = flags
 
+    # not present since 2023-07-draft
     @property
     def validator_flags(self):
         return self._validator_flags
@@ -288,6 +302,7 @@ class ProblemYaml:
         if value is None: return
         self._validator_flags = value
 
+    # only present in legacy
     @property
     def scoring(self):
         return self._scoring
@@ -302,6 +317,7 @@ class ProblemYaml:
         parser_warning('"grading" is deprecated, use "scoring" instead')
         self._scoring = value
 
+    # present in all versions
     @property
     def keywords(self):
         return self._keywords
@@ -310,6 +326,9 @@ class ProblemYaml:
     def keywords(self, value):
         if value is None: return
         self._keywords = value
+
+    # todo: add languages (since 2023-07-draft)
+    # todo: add constants (since 2023-07-draft)
 
     def generate_dict(self):
         dict = {
@@ -331,6 +350,129 @@ class ProblemYaml:
         dict_add_unless_none(dict, 'scoring', self.scoring)
         dict_add_unless_none(dict, 'keywords', self.keywords)
         return dict
+
+class TestdataYaml:
+    def __init__(self, in_version, out_version):
+        if in_version is None or in_version == 'legacy':
+            self._in_version = ProblemFormatVersion.LEGACY
+        else:
+            parser_unimplemented(f'problem format version: {in_version}')
+
+    # only present in legacy
+    @property
+    def on_reject(self):
+        return self._on_reject
+
+    @on_reject.setter
+    def on_reject(self, value):
+        if value is None: return
+        if value not in ['break', 'continue']:
+            parser_error(f'illegal on_reject: {value}')
+        self._on_reject = value
+
+    # only present since 2023-07-draft
+    @property
+    def scoring(self):
+        return self._scoring
+
+    @scoring.setter
+    def scoring(self, value):
+        if value is None: return
+        self._scoring = value
+
+    # only present in legacy
+    @property
+    def grading(self):
+        return self._grading
+
+    @grading.setter
+    def grading(self, value):
+        if value is None: return
+        if value not in ['default', 'custom']:
+            parser_error(f'illegal grading: {value}')
+        self._grading = value
+
+    # only present in legacy
+    @property
+    def grader_flags(self):
+        return self._grader_flags
+
+    @grader_flags.setter
+    def grader_flags(self, value):
+        if value is None: return
+        self._grader_flags = value
+
+    # only present in legacy
+    @property
+    def input_validator_flags(self):
+        return self._input_validator_args
+
+    @input_validator_flags.setter
+    def input_validator_flags(self, value):
+        if value is None: return
+        self._input_validator_args = value
+
+    # only present since 2023-07-draft
+    @property
+    def input_validator_args(self):
+        return self._input_validator_args
+
+    @input_validator_args.setter
+    def input_validator_args(self, value):
+        if value is None: return
+        self._input_validator_args = value
+
+    # only present since 2023-07-draft
+    @property
+    def static_validation(self):
+        return self._static_validation
+
+    @static_validation.setter
+    def static_validation(self, value):
+        if value is None: return
+        self._static_validation = value
+
+    # only present since 2023-07-draft
+    @property
+    def full_feedback(self):
+        return self._full_feedback
+
+    @full_feedback.setter
+    def full_feedback(self, value):
+        if value is None: return
+        self._full_feedback = value
+
+    # only present in legacy
+    # todo: should this really be a string as specified?
+    @property
+    def accept_score(self):
+        return self._accept_score
+
+    @accept_score.setter
+    def accept_score(self, value):
+        if value is None: return
+        self._accept_score = value
+
+    # only present in legacy
+    # todo: should this really be a string as specified?
+    @property
+    def reject_score(self):
+        return self._reject_score
+
+    @reject_score.setter
+    def reject_score(self, value):
+        if value is None: return
+        self._reject_score = value
+
+    # only present in legacy
+    @property
+    def range(self):
+        return self._range
+
+    @range.setter
+    def range(self, value):
+        if value is None: return
+        self._range = value
 
 def arg_inputdir(path):
     if not os.path.isdir(path):
